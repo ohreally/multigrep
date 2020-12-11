@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+
+################################################################################
+
+#                                 multigrep
+#                                 door  Rob
+
+# rob@ohreally.nl
+################################################################################
+# https://www.ohreally.nl
+
+# This script searches all PDF, OpenDocument and text-based files
+# in the current directory for the given string.
+
+# For more info, see
+# https://www.ohreally.nl/2020/12/11/multigrep/
+
+################################################################################
+
+# Copyright (c) 2020 Rob La Lau <rob@ohreally.nl>
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+################################################################################
+
+CAT=`which cat`             || exit 1
+FILE=`which file`           || exit 1
+GREP=`which grep`           || exit 1
+PDF2TXT=`which pdf_to_text` || exit 1
+SED=`which sed`             || exit 1
+TIDY=`which tidyp`          || exit 1
+UNZIP=`which unzip`         || exit 1
+
+pattern=$@
+
+process() {
+	while read input; do
+		"${GREP}" -i "${pattern}" | "${SED}" -e "s/^ */${file}: /;s/ *$//"
+	done
+}
+
+for file in *; do
+	[ -d "${file}" ] && {
+		echo "  Directory : ${file}"
+		continue
+	}
+	mimetype=`"${FILE}" --brief --mime-type "${file}"`
+	major=${mimetype%%/*}
+	minor=${mimetype##*/}
+	case "${major}" in
+		application)
+			case "${minor}" in
+				pdf)
+					# PDF
+					"${PDF2TXT}" --file "${file}" 2> /dev/null | process
+					;;
+				vnd.oasis.opendocument.*)
+					# OpenDocument (all)
+					"${UNZIP}" -p "${file}" | "${TIDY}" -quiet -xml -bare -utf8 2> /dev/null | process
+					;;
+			esac
+			;;
+		text)
+			# text/*
+			"${CAT}" "${file}" | process
+			;;
+		*)
+			echo "  Unknown file type (${mimetype}) : ${file}"
+			;;
+	esac
+done
