@@ -74,6 +74,9 @@ for file in *; do
 					# OpenDocument (all)
 					"${UNZIP}" -p "${file}" | "${TIDY}" -quiet -xml -bare -utf8 2> /dev/null | process
 					;;
+				*)
+					echo "  Unknown file type (${mimetype}) : ${file}"
+					;;
 			esac
 			;;
 		text)
